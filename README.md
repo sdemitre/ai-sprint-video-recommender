@@ -13,12 +13,12 @@ This is a static page; no Node.js build step is required.
 5. In Supabase **SQL Editor**, run `supabase/migrations/202610180001_secure_analytics.sql`.
 6. Serve the folder with any static server, or use the VS Code Live Server extension. For example, run `python3 -m http.server 8000` and open http://localhost:8000.
 
-If Supabase is not configured, the finder still works, but usage events will not be recorded.
+If Supabase is not configured, the finder still works, but usage events will not be recorded. The live Google Sheet is fetched by the browser; if it is private or not shared for viewing, the site falls back to demo recommendations.
 
 ## What's included
 
-- Public video finder with function area, task, tool, and keyword filters.
-- 90 mock catalogue entries generated from 10 function areas × 3 tasks × 3 tool variants.
+- Public video finder with function area, task, tool, and keyword filters.\n- Live catalog fetch from spreadsheet ID `19oEtn6wLq_2Svr_axMuFb9H0llNcqdR7Fsxcn3VOa6w` using the first tab's CSV export.\n- Expected column headers (case-insensitive): `Title`/`Video Title`, `URL`/`Video URL`, `Function Area`, `Task`/`Goal`, `Tool`/`AI Tool`, `Description`, and `Duration`. Title or URL is required; missing optional fields receive defaults.
+- Loads the live video catalog from the linked Google Sheet's first tab as CSV, with a demo catalog fallback if the sheet cannot be fetched. The sheet must be viewable to the website without signing in (or published to web as CSV).
 - Watch buttons open YouTube search results for the chosen tool and task. The entries are mock recommendations, not individually verified videos.
 - Usage-event collection for recommendation views, show-more actions, and video-selection clicks.
 - No public admin page, admin login form, or analytics dashboard.
