@@ -40,6 +40,23 @@ const areas = [
 ];
 const mockVideos = areas.flatMap((g,ai)=>g[1].flatMap((task,ti)=>g[2].map((tool,xi)=>{const title=tool+': '+task;return{id:'v-'+String(ai*9+ti*3+xi+1).padStart(3,'0'),title,functionArea:g[0],task,tool,duration:['6 min','9 min','12 min'][(ti+xi)%3],description:'A practical learning search for using '+tool+' to '+task.toLowerCase()+'.',url:'https://www.youtube.com/results?search_query='+encodeURIComponent(tool+' tutorial '+task+' AI training')};})));
 let videos = [...mockVideos];
+const $ = id => document.getElementById(id);
+const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+let results = [];
+let shownAll = false;
+function fillSelect(select, values, placeholder, selectedValue=''){
+ select.innerHTML='<option value="">'+esc(placeholder)+'</option>'+values.map(value=>'<option value="'+esc(value)+'">'+esc(value)+'</option>').join('');
+ if(values.includes(selectedValue))select.value=selectedValue;
+}
+function updateFilterOptions(){
+ const area=$('area').value, taskValue=$('task').value, toolValue=$('tool').value;
+ const relevant=videos.filter(v=>!area||v.functionArea===area);
+ fillSelect($('task'),[...new Set(relevant.map(v=>v.task))],'Any task',taskValue);
+ const byTask=relevant.filter(v=>!$('task').value||v.task===$('task').value);
+ fillSelect($('tool'),[...new Set(byTask.map(v=>v.tool))],'Any tool',toolValue);
+}
+fillSelect($('area'),[...new Set(videos.map(v=>v.functionArea))],'All function areas');
+updateFilterOptions();
 // Self-contained mock catalog: 10 function areas × 3 tasks × 3 tools = 90 entries.
 function record(v,eventType){if(!supabase)return;const row={video_id:v.id,video_title:v.title,function_area:v.functionArea,task:v.task,tool:v.tool,event_type:eventType};supabase.from('recommendation_events').insert(row).then(({error})=>{if(error)console.warn('Analytics not recorded:',error.message);});}
 function visualFor(v,i){
