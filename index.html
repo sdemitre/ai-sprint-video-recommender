@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Sprint AI video finder and protected usage analytics">
+<meta name="description" content="Sprint AI video finder for practical AI learning">
 <title>Sprint AI — Video Learning Hub</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap');
@@ -10,7 +10,7 @@
 </style>
 </head>
 <body>
-<header class="top"><div class="brand"><span class="logo">✳</span><span>Sprint<em>AI</em><small>VIDEO LEARNING HUB</small></span></div><nav class="nav"><button id="navFinder" class="active" data-short="Find">⌕ Find videos</button><button id="navAdmin" data-short="Admin">♙ Admin</button></nav><div class="right"><span class="dot"></span> Learning library <button id="logoutTop" class="btn secondary" hidden>Sign out</button></div></header>
+<header class="top"><div class="brand"><span class="logo">✳</span><span>Sprint<em>AI</em><small>VIDEO LEARNING HUB</small></span></div><div class="right"><span class="dot"></span> Learning library</div></header>
 <main class="page">
 <section id="finderView">
   <div class="hero"><div class="eyebrow">✳ &nbsp; YOUR PRACTICAL AI PLAYBOOK</div><h1>Find the right AI video<br><span>for the work you do.</span></h1><p>Skip the noise. Discover practical tutorials matched to your function, task, and tools.</p><div class="pills"><span>Task-first discovery</span><span>Tool-specific learning</span><span>Practical search paths</span></div></div>
@@ -19,19 +19,13 @@
   <section class="section"><div class="sectionhead"><div><div class="eyebrow">RECOMMENDED FOR YOU</div><h2>Start with these videos</h2><p>Watch opens a YouTube search for the selected task and tool.</p></div><span class="count" id="resultCount">90 results</span></div><div class="grid" id="videoGrid"></div><button id="showMore" class="btn secondary more" hidden>Show more recommendations ↓</button></section>
   <div class="callout"><strong>Make learning part of the workflow.</strong><p>Pick a real task, learn one useful technique, and put it to work.</p></div>
 </section>
-<section id="adminView" hidden>
-  <div id="loginWrap" class="login"><div class="lock">♙</div><div class="eyebrow">RESTRICTED AREA</div><h1>Welcome back.</h1><p>Sign in with your authorized administrator account to view shared usage analytics.</p><div id="setupNotice" class="notice" hidden>Supabase is not configured yet. Copy <code>config.example.js</code> to <code>config.js</code>, add your Supabase project URL and publishable/anon key, then apply the SQL migration.</div><form id="loginForm"><label>Username<input id="username" autocomplete="username" required placeholder="Admin username"></label><label>Password<input id="password" type="password" autocomplete="current-password" required placeholder="Your password"></label><div id="loginError" class="error" hidden></div><button class="btn full" type="submit">Sign in securely ↗</button></form><div class="muted">Supabase Auth + database row-level security</div></div>
-  <div id="dashboard" hidden><div class="adminhead"><div><div class="eyebrow">PRIVATE WORKSPACE</div><h1>Usage analytics</h1><p>Understand what people are learning and where demand is growing.</p></div><div class="actions"><button id="refresh" class="btn secondary">↻ Refresh</button><button id="export" class="btn">↓ Export CSV</button></div></div><div class="metrics"><div class="metric"><div class="label">Video selections</div><strong id="selectedMetric">0</strong><small>Recorded watch clicks</small></div><div class="metric"><div class="label">Videos selected</div><strong id="uniqueMetric">0</strong><small>Of 90 catalogue entries</small></div><div class="metric"><div class="label">Recommendation views</div><strong id="shownMetric">0</strong><small>Tracked recommendation events</small></div><div class="metric"><div class="label">Tracked events</div><strong id="eventsMetric">0</strong><small>Latest 5,000 events</small></div></div><div class="columns"><section class="card"><h2>Function area usage</h2><div class="sub">Selections by function</div><div id="bars" class="bars"></div></section><section class="card"><h2>Most selected videos</h2><div class="sub">Based on recorded watch clicks</div><div id="popular"></div></section></div><section class="card"><h2>Never-selected videos <span class="badge" id="neverCount"></span></h2><div class="sub">Catalogue entries with zero recorded selections</div><div class="tablewrap"><table><thead><tr><th>Video</th><th>Function area</th><th>Tool</th><th>Selections</th></tr></thead><tbody id="neverTable"></tbody></table></div></section><section class="card" style="margin-top:15px"><h2>Recent activity</h2><div class="sub">Latest recorded interactions</div><div class="tablewrap"><table><thead><tr><th>Event</th><th>Video / action</th><th>Function area</th><th>Date</th></tr></thead><tbody id="recentTable"></tbody></table></div></section></div>
-</section>
 <footer class="footer"><span>© 2026 Sprint AI · Video Learning Hub</span><span id="footerStatus">Built for practical, responsible AI adoption</span></footer>
 </main>
 <script src="./config.js"></script>
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const cfg = window.SPRINT_AI_CONFIG || {};
-const supabase = cfg.supabaseUrl && cfg.supabaseAnonKey && !cfg.supabaseUrl.includes('YOUR_PROJECT') ? createClient(cfg.supabaseUrl,cfg.supabaseAnonKey,{auth:{persistSession:true,autoRefreshToken:true}}) : null;
-const expectedUsername = cfg.adminUsername || 'admin';
-const adminEmail = cfg.adminEmail || '';
+const supabase = cfg.supabaseUrl && cfg.supabaseAnonKey && !cfg.supabaseUrl.includes('YOUR_PROJECT') ? createClient(cfg.supabaseUrl,cfg.supabaseAnonKey) : null;
 const areas = [
 ['Marketing',['Draft a campaign brief','Repurpose long-form content','Analyze customer feedback'],['ChatGPT','Claude','Gemini']],
 ['Sales',['Research an account','Personalize outreach','Prepare for a sales call'],['ChatGPT','Microsoft Copilot','Gemini']],
@@ -46,7 +40,7 @@ const areas = [
 ];
 const videos = areas.flatMap((g,ai)=>g[1].flatMap((task,ti)=>g[2].map((tool,xi)=>{const title=tool+': '+task;return{id:'v-'+String(ai*9+ti*3+xi+1).padStart(3,'0'),title,functionArea:g[0],task,tool,duration:['6 min','9 min','12 min'][(ti+xi)%3],description:'A practical learning search for using '+tool+' to '+task.toLowerCase()+'.',url:'https://www.youtube.com/results?search_query='+encodeURIComponent(tool+' tutorial '+task+' AI training')};})));
 const $ = id => document.getElementById(id);
-let results = [...videos], shownAll = false, session = null, isAdmin = false, events = [];
+let results = [...videos], shownAll = false;
 const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function selectOptions(id, values, first){$(id).innerHTML='<option value="">'+first+'</option>'+values.map(v=>'<option>'+esc(v)+'</option>').join('');}
 selectOptions('area',areas.map(a=>a[0]),'All function areas');
@@ -58,16 +52,6 @@ $('searchForm').addEventListener('submit',e=>{e.preventDefault();shownAll=false;
 $('showMore').addEventListener('click',()=>{shownAll=true;renderVideos();record({id:'catalogue',title:'Show more results',functionArea:$('area').value||'All areas',task:$('task').value||'All tasks',tool:$('tool').value||'All tools'},'show_more');});
 $('videoGrid').addEventListener('click',e=>{const b=e.target.closest('[data-video]');if(!b)return;const v=videos.find(x=>x.id===b.dataset.video);if(v){record(v,'selected');window.open(v.url,'_blank','noopener,noreferrer');}});
 renderVideos();
-function switchView(which){$('finderView').hidden=which!=='finder';$('adminView').hidden=which!=='admin';$('navFinder').classList.toggle('active',which==='finder');$('navAdmin').classList.toggle('active',which==='admin');}
-$('navFinder').onclick=()=>switchView('finder');$('navAdmin').onclick=()=>{switchView('admin');if(!supabase)$('setupNotice').hidden=false;};
-$('logoutTop').onclick=async()=>{if(supabase)await supabase.auth.signOut();session=null;isAdmin=false;events=[];showLogin();};
-function showLogin(message=''){$('loginWrap').hidden=false;$('dashboard').hidden=true;$('logoutTop').hidden=true;$('loginError').hidden=!message;$('loginError').textContent=message;}
-function showDashboard(){$('loginWrap').hidden=true;$('dashboard').hidden=false;$('logoutTop').hidden=false;}
-async function verifyAdmin(){if(!supabase)return false;const {data:{user}}=await supabase.auth.getUser();if(!user){isAdmin=false;showLogin();return false;}const {data,error}=await supabase.from('admin_users').select('user_id').eq('user_id',user.id).maybeSingle();if(error||!data){await supabase.auth.signOut();isAdmin=false;showLogin('This account is not authorized for the admin dashboard.');return false;}session=user;isAdmin=true;showDashboard();await loadAnalytics();return true;}
-$('loginForm').addEventListener('submit',async e=>{e.preventDefault();$('loginError').hidden=true;if(!supabase){showLogin('Supabase is not configured. Follow the setup instructions in README.md.');return;}if($('username').value.trim().toLowerCase()!==expectedUsername.toLowerCase()){showLogin('Username or password is incorrect.');return;}if(!adminEmail){showLogin('Set adminEmail in config.js before signing in.');return;}const btn=$('loginForm').querySelector('button');btn.disabled=true;btn.textContent='Signing in…';const {error}=await supabase.auth.signInWithPassword({email:adminEmail,password:$('password').value});btn.disabled=false;btn.textContent='Sign in securely ↗';if(error){showLogin('Username or password is incorrect.');return;}await verifyAdmin();});
-async function loadAnalytics(){if(!supabase||!isAdmin)return;const {data,error}=await supabase.from('recommendation_events').select('id,video_id,video_title,function_area,task,tool,event_type,created_at').order('created_at',{ascending:false}).limit(5000);if(error){$('footerStatus').textContent='Analytics query failed. Check migration and admin allowlist.';return;}events=data||[];renderDashboard();}
-function renderDashboard(){const selected=events.filter(e=>e.event_type==='selected'),shown=events.filter(e=>e.event_type==='shown');$('selectedMetric').textContent=selected.length.toLocaleString();$('uniqueMetric').textContent=new Set(selected.map(e=>e.video_id)).size;$('shownMetric').textContent=shown.length.toLocaleString();$('eventsMetric').textContent=events.length.toLocaleString();const counts=areas.map(a=>({name:a[0],count:selected.filter(e=>e.function_area===a[0]).length})).sort((a,b)=>b.count-a.count);$('bars').innerHTML=counts.map(x=>'<div><div class="barlabel"><span>'+esc(x.name)+'</span><b>'+x.count+'</b></div><div class="track"><span style="width:'+(counts[0]?.count?x.count/counts[0].count*100:0)+'%"></span></div></div>').join('');const vc=videos.map(v=>({v,count:selected.filter(e=>e.video_id===v.id).length})).sort((a,b)=>b.count-a.count);const popular=vc.filter(x=>x.count>0).slice(0,5);$('popular').innerHTML=popular.length?popular.map((x,i)=>'<div class="rowitem"><span class="rank">'+String(i+1).padStart(2,'0')+'</span><div class="info"><b>'+esc(x.v.title)+'</b><small>'+esc(x.v.functionArea)+' · '+esc(x.v.tool)+'</small></div><strong>'+x.count+'</strong></div>').join(''):'<div class="empty">No selections yet. Use the public finder to create activity.</div>';const never=vc.filter(x=>x.count===0);$('neverCount').textContent=never.length+' videos';$('neverTable').innerHTML=never.slice(0,20).map(x=>'<tr><td>'+esc(x.v.title)+'</td><td>'+esc(x.v.functionArea)+'</td><td>'+esc(x.v.tool)+'</td><td>0</td></tr>').join('');$('recentTable').innerHTML=events.slice(0,20).map(x=>'<tr><td><span class="event '+(x.event_type==='selected'?'selected':'')+'">'+esc(x.event_type.replace('_',' '))+'</span></td><td>'+esc(x.video_title)+'</td><td>'+esc(x.function_area)+'</td><td>'+new Date(x.created_at).toLocaleString()+'</td></tr>').join('')||'<tr><td colspan="4">No activity yet.</td></tr>';}
-$('refresh').onclick=()=>void loadAnalytics();$('export').onclick=()=>{const rows=[['video_id','video_title','function_area','task','tool','event_type','created_at'],...events.map(e=>[e.video_id,e.video_title,e.function_area,e.task,e.tool,e.event_type,e.created_at])];const csv=rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));const a=document.createElement('a');a.href=url;a.download='sprint-ai-analytics.csv';a.click();URL.revokeObjectURL(url);};
-if(supabase){supabase.auth.getSession().then(async({data})=>{if(data.session)await verifyAdmin();else showLogin();});supabase.auth.onAuthStateChange((_event,s)=>{if(!s){session=null;isAdmin=false;showLogin();}});}else showLogin();
+
 </script>
 </body></html>
