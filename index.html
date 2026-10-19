@@ -146,7 +146,30 @@ function parseCSV(text){let rows=[],row=[],cell='',quoted=false;for(let i=0;i<te
 function key(x){return String(x).toLowerCase().replace(/[^a-z0-9]/g,'')}
 function field(r,...names){for(let n of names){let v=r[key(n)];if(v&&String(v).trim())return String(v).trim()}return ''}
 function youtubeIdFrom(x){x=String(x||'').trim();if(/^[\w-]{11}$/.test(x))return x;try{let u=new URL(x),h=u.hostname.replace(/^www\./,'');if(h==='youtu.be')return u.pathname.split('/')[1]||'';if(['youtube.com','m.youtube.com','youtube-nocookie.com'].includes(h)){if(u.pathname==='/watch')return u.searchParams.get('v')||'';let p=u.pathname.split('/');if(['shorts','embed','live'].includes(p[1]))return p[2]||''}}catch(e){}return ''}
-function sheetVideos(csv){let rows=parseCSV(csv);if(rows.length<2)throw Error('No video rows found');let headers=rows.shift().map(key);return rows.map(row=>Object.fromEntries(headers.map((h,i)=>[h,row[i]||'']))).filter(r=>!['inactive','archived','draft','disabled','false','no'].includes(field(r,'Status','Active').toLowerCase())).map(r=>{let title=field(r,'Title','Video Title','Name'),id=youtubeIdFrom(field(r,'YouTube_URL','YouTube URL','Video URL','URL','Link','Video_ID','YouTube ID'));if(!title||!/^[\w-]{11}$/.test(id))return null;let area=field(r,'Function_Areas','Function Area','Function','Department','Category')||'General',tool=field(r,'Tools','Tool','AI Tool')||'AI tools',task=field(r,'Task_Keywords','Task Keywords','Task','Goal','Keywords','Tags'),desc=field(r,'Description','Summary')||'Watch this AI training video.',tags=field(r,'Tags','Category','Tool').split(/[,;|]/).map(x=>x.trim()).filter(Boolean).slice(0,3);return {title,area,tool,task,desc,tags:tags.length?tags:[tool],duration:field(r,'Duration','Length')||'Video',why:'Recommended from the connected Google Sheets library.',youtubeId:id,creator:field(r,'Creator','Channel','Author')||'YouTube'}}).filter(Boolean)}
+function sheetVideos(csv){
+ const rows=parseCSV(csv);if(rows.length<2)throw Error('No data rows in the selected tab');
+ const aliases=['title','videotitle','name','youtubeurl','videourl','url','link','videolink','youtubeid','videoid','video','trainingvideo','resourcelink'];
+ let headerIndex=rows.findIndex((row,i)=>i<12&&row.map(key).some(x=>['title','videotitle','name'].includes(x))&&row.map(key).some(x=>aliases.slice(3).includes(x)));
+ if(headerIndex<0)headerIndex=rows.findIndex((row,i)=>i<12&&row.map(key).some(x=>aliases.includes(x)));
+ if(headerIndex<0)throw Error('Video column headers not recognized. First row: '+rows[0].slice(0,7).join(' | ').slice(0,190));
+ const headers=rows[headerIndex].map(key);
+ const records=rows.slice(headerIndex+1).map(row=>Object.fromEntries(headers.map((h,i)=>[h,row[i]||''])));
+ const parsed=records.filter(r=>!['inactive','archived','draft','disabled','false','no','0'].includes(field(r,'Status','Active','Published').toLowerCase())).map(r=>{
+  const title=field(r,'Title','Video Title','Name','Training Title','Resource Title','Video Name','Tutorial Title','AI Training Video','Video','Topic');
+  const url=field(r,'YouTube_URL','YouTube URL','Video URL','URL','Link','Video Link','Video_ID','YouTube ID','Video ID','YouTube Link','Video','Training Link','Resource Link','Watch Link','Tutorial Link','Video Website','Video Web Link');
+  let id=youtubeIdFrom(url);
+  if(!id){for(const val of Object.values(r)){id=youtubeIdFrom(val);if(id)break}}
+  if(!title||!/^[\\w-]{11}$/.test(id))return null;
+  const area=field(r,'Function_Areas','Function Area','Function','Department','Category','Business Function','Functional Area','Use Case','Function/Area')||'General';
+  const tool=field(r,'Tools','Tool','AI Tool','Platform','Product','AI Platform')||'AI tools';
+  const task=field(r,'Task_Keywords','Task Keywords','Task','Goal','Keywords','Tags','Use Case','Learning Objective');
+  const desc=field(r,'Description','Summary','Video Description','Overview','What You Will Learn')||'Watch this AI training video.';
+  const tags=field(r,'Tags','Category','Tool').split(/[,;|]/).map(x=>x.trim()).filter(Boolean).slice(0,3);
+  return {title,area,tool,task,desc,tags:tags.length?tags:[tool],duration:field(r,'Duration','Length','Video Duration')||'Video',why:'Recommended from the connected Google Sheets library.',youtubeId:id,creator:field(r,'Creator','Channel','Author','Source','Publisher')||'YouTube'}
+ }).filter(Boolean);
+ if(!parsed.length)throw Error('0 usable YouTube links in '+records.length+' rows. Columns: '+rows[headerIndex].slice(0,12).join(' | ').slice(0,210));
+ return parsed
+}
 function updateSheetFilters(){for(let [id,prop] of [['function','area'],['tool','tool']]){let el=$(id),old=el.value,values=[...new Set(videos.flatMap(v=>String(v[prop]).split(/[,;|]/).map(x=>x.trim()).filter(Boolean)))].sort();el.replaceChildren(new Option(id==='function'?'All function areas':'Any AI tool',''));values.forEach(x=>el.add(new Option(x,x)));if([...el.options].some(o=>o.value===old))el.value=old}}
 async function loadSheetVideos(){announce('Loading Google Sheets video library…');try{let response=await fetch(SHEET_URL,{cache:'no-store'});if(!response.ok)throw Error('HTTP '+response.status);let csv=await response.text();if(/^\s*</.test(csv))throw Error('Sign-in or permission page returned');let catalog=sheetVideos(csv);if(!catalog.length)throw Error('No valid active YouTube video rows');videos=catalog;window.sheetLoaded=true;updateSheetFilters();search(false);renderAdmin();announce('Connected to Google Sheets: '+videos.length+' videos loaded.','ok')}catch(e){window.sheetLoaded=false;announce('Could not load the Google Sheet ('+e.message+'). Showing fallback videos. Share the sheet for viewing or publish its CSV, then reload.','warn')}}
 loadSheetVideos();
