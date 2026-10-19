@@ -88,11 +88,56 @@ function get(row,key){const keys=Object.keys(row);for(const a of aliases[key]){c
 function parseCSV(text){const rows=[];let row=[],field='',quoted=false;for(let i=0;i<text.length;i++){const c=text[i];if(quoted){if(c==='"'&&text[i+1]==='"'){field+='"';i++;}else if(c==='"')quoted=false;else field+=c;}else if(c==='"')quoted=true;else if(c===','){row.push(field);field='';}else if(c==='\n'){row.push(field);rows.push(row);row=[];field='';}else if(c!=='\r')field+=c;}if(field.length||row.length){row.push(field);rows.push(row);}if(rows.length<2)return [];const headers=rows.shift().map(h=>h.trim());return rows.filter(r=>r.some(c=>String(c).trim())).map(r=>Object.fromEntries(headers.map((h,i)=>[h,r[i]??''])));}
 function youtubeId(url){const s=String(url||'');return s.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/))([A-Za-z0-9_-]{11})/)?.[1]||'';}
 function normalizeRows(rows){return rows.map((r,i)=>{const title=get(r,'title'),url=get(r,'url');if(!title&&!url)return null;const vid=youtubeId(url);return{id:'sheet-'+i,title:title||'AI Sprint video',url:url||SHEET_URL,functionArea:get(r,'area')||'Other',task:get(r,'task')||title||'General AI workflow',tool:get(r,'tool')||'AI tools',description:get(r,'description')||'A practical AI demonstration from the AI Sprint video library.',duration:get(r,'duration')||'',presenter:get(r,'presenter')||'AI Sprint',thumbnail:vid?'https://i.ytimg.com/vi/'+vid+'/hqdefault.jpg':''};}).filter(Boolean);}
+const DEFAULT_AREAS=['Operations','Communications & Marketing','Research & Analysis','Data & Analytics','Program & Project Management','Customer & Community Support','HR & People','Finance & Administration','Strategy & Planning','Product & Technology'];
+const DEFAULT_TASKS=['Draft or improve writing','Research a topic','Summarize documents','Analyze data','Create presentations','Brainstorm ideas','Automate repetitive work','Build a workflow or AI agent','Prepare for meetings','Create images or content'];
+const DEFAULT_TOOLS=['ChatGPT','Microsoft Copilot','Google Gemini','Claude','Perplexity','NotebookLM','Microsoft Excel','Power BI','Canva','Zapier / Make'];
 function fill(sel,vals,placeholder,prior=''){sel.innerHTML='<option value="">'+esc(placeholder)+'</option>'+vals.map(v=>'<option value="'+esc(v)+'">'+esc(v)+'</option>').join('');if(vals.includes(prior))sel.value=prior;}
-function updateFilterOptions(){const area=$('area').value,task=$('task').value,tool=$('tool').value;const subset=videos.filter(v=>!area||v.functionArea===area);fill($('task'),[...new Set(subset.map(v=>v.task))].sort(),'Any task',task);const narrowed=subset.filter(v=>!$('task').value||v.task===$('task').value);fill($('tool'),[...new Set(narrowed.map(v=>v.tool))].sort(),'Any tool',tool);}
+function uniqueSorted(values){return [...new Set(values.map(v=>String(v||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));}
+function updateFilterOptions(){const task=$('task').value,tool=$('tool').value;fill($('task'),uniqueSorted([...DEFAULT_TASKS,...videos.map(v=>v.task)]),'Any task',task);fill($('tool'),uniqueSorted([...DEFAULT_TOOLS,...videos.map(v=>v.tool)]),'Any tool',tool);}
+function matchesChoice(v,field,choice){
+ if(!choice)return true;
+ const actual=norm(v[field]);
+ if(actual===norm(choice)||actual.includes(norm(choice))||norm(choice).includes(actual))return true;
+ const text=norm([v.title,v.description,v.functionArea,v.task,v.tool].join(' '));
+ const groups={
+  'Operations':['operations','workflow','process','admin','automation','repetitive work'],
+  'Communications & Marketing':['marketing','communications','social media','email','content','copywriting'],
+  'Research & Analysis':['research','literature review','summarize','analysis','sources'],
+  'Data & Analytics':['data','analytics','spreadsheet','excel','power bi','visualization','dashboard'],
+  'Program & Project Management':['project','program','planning','meeting','tasks','status update'],
+  'Customer & Community Support':['customer','community','support','service','faq','response'],
+  'HR & People':['hr','human resources','recruiting','hiring','people','training'],
+  'Finance & Administration':['finance','budget','accounting','administration','report'],
+  'Strategy & Planning':['strategy','planning','brainstorm','decision','roadmap'],
+  'Product & Technology':['product','technology','coding','software','developer','technical'],
+  'Draft or improve writing':['writing','draft','rewrite','edit','email','copy','proofread'],
+  'Research a topic':['research','sources','perplexity','find information','fact check'],
+  'Summarize documents':['summarize','summary','document','meeting notes','long text'],
+  'Analyze data':['analyze','analysis','data','spreadsheet','excel','chart','dashboard'],
+  'Create presentations':['presentation','slides','powerpoint','deck'],
+  'Brainstorm ideas':['brainstorm','ideas','ideation','creative'],
+  'Automate repetitive work':['automation','automate','zapier','make.com','workflow'],
+  'Build a workflow or AI agent':['agent','workflow','automation','multi-step'],
+  'Prepare for meetings':['meeting','agenda','minutes','action items'],
+  'Create images or content':['image','visual','design','content','canva','social media'],
+  'ChatGPT':['chatgpt','openai','gpt'],
+  'Microsoft Copilot':['copilot','microsoft 365','office 365'],
+  'Google Gemini':['gemini','google ai'],
+  'Claude':['claude','anthropic'],
+  'Perplexity':['perplexity','web research','search engine'],
+  'NotebookLM':['notebooklm','notebook lm','source notebook'],
+  'Microsoft Excel':['excel','spreadsheet','microsoft 365'],
+  'Power BI':['power bi','dashboard','business intelligence'],
+  'Canva':['canva','graphic design','visual design'],
+  'Zapier / Make':['zapier','make.com','automation']
+ };
+ const terms=groups[choice]||[norm(choice)];
+ return terms.some(term=>text.includes(norm(term)));
+}
 function score(v){let n=0;if($('area').value)n+=v.functionArea===$('area').value?10:-2;if($('task').value&&v.task===$('task').value)n+=8;if($('tool').value&&v.tool===$('tool').value)n+=5;const q=norm($('keyword').value);if(q){const hay=norm([v.title,v.description,v.functionArea,v.task,v.tool].join(' '));q.split(' ').forEach(w=>{if(w.length>1&&hay.includes(w))n+=2;});}return n;}
 function art(v,i){const id=youtubeId(v.url);const thumb=v.thumbnail||(id?'https://i.ytimg.com/vi/'+id+'/hqdefault.jpg':'');const bg=thumb?'<img src="'+esc(thumb)+'" alt="" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.classList.add(\'no-thumb\');this.parentElement.insertAdjacentHTML(\'afterbegin\',\'<span class=&quot;fallback-play&quot;>▶</span>\')">':'<div class="fallback-play">▶</div>';return '<a class="art '+(thumb?'':'no-thumb')+'" href="'+esc(v.url||SHEET_URL)+'" target="_blank" rel="noopener noreferrer" aria-label="Watch '+esc(v.title)+'">'+bg+'<span class="artlabel">AI SPRINT VIDEO</span><span class="visual-title">'+esc(v.title)+'</span><span class="visual-play">▶ Watch video</span></a>';}
-function renderVideos(){const area=$('area').value,task=$('task').value,tool=$('tool').value,q=norm($('keyword').value);results=videos.filter(v=>(!area||v.functionArea===area)&&(!task||v.task===task)&&(!tool||v.tool===tool)&&(!q||norm([v.title,v.description,v.functionArea,v.task,v.tool,v.presenter].join(' ')).includes(q))).map(v=>({...v,_score:score(v)})).sort((a,b)=>b._score-a._score);$('matchCount').textContent=results.length+' videos';$('resultCount').textContent=results.length+' library results';const visible=shownAll?results:results.slice(0,3);$('videoGrid').innerHTML=visible.map((v,i)=>'<article class="video">'+art(v,i)+'<div class="video-body"><div class="tags"><span>'+esc(v.tool)+'</span><span>'+esc(v.duration||'Video')+'</span></div><h3>'+esc(v.title)+'</h3><p>'+esc(v.description)+'</p><p class="reason">Matched to '+esc(v.functionArea)+' · '+esc(v.task)+'</p><div class="video-foot"><span>'+esc(v.presenter)+'</span><a class="watch" href="'+esc(v.url||SHEET_URL)+'" target="_blank" rel="noopener noreferrer">Watch original ↗</a></div></div></article>').join('')||'<div class="notice">No exact matches. Try removing a filter or using a broader keyword.</div>';$('showMore').hidden=shownAll||results.length<=3;}
+function renderVideos(){const area=$('area').value,task=$('task').value,tool=$('tool').value,q=norm($('keyword').value);const exact=videos.filter(v=>(!area||matchesChoice(v,'functionArea',area))&&(!task||matchesChoice(v,'task',task))&&(!tool||matchesChoice(v,'tool',tool))&&(!q||norm([v.title,v.description,v.functionArea,v.task,v.tool,v.presenter].join(' ')).includes(q)));
+results=(exact.length?exact:videos.filter(v=>!q||norm([v.title,v.description,v.functionArea,v.task,v.tool,v.presenter].join(' ')).includes(q))).map(v=>({...v,_score:score(v)})).sort((a,b)=>b._score-a._score);$('matchCount').textContent=results.length+' videos';$('resultCount').textContent=results.length+' library results';const visible=shownAll?results:results.slice(0,3);$('videoGrid').innerHTML=visible.map((v,i)=>'<article class="video">'+art(v,i)+'<div class="video-body"><div class="tags"><span>'+esc(v.tool)+'</span><span>'+esc(v.duration||'Video')+'</span></div><h3>'+esc(v.title)+'</h3><p>'+esc(v.description)+'</p><p class="reason">Matched to '+esc(v.functionArea)+' · '+esc(v.task)+'</p><div class="video-foot"><span>'+esc(v.presenter)+'</span><a class="watch" href="'+esc(v.url||SHEET_URL)+'" target="_blank" rel="noopener noreferrer">Watch original ↗</a></div></div></article>').join('')||'<div class="notice">No exact matches. Try removing a filter or using a broader keyword.</div>';$('showMore').hidden=shownAll||results.length<=3;}
 function rowsFromGViz(payload){
  if(!payload||payload.status!=='ok'||!payload.table)throw new Error('Google Sheets did not return readable video data.');
  const cols=payload.table.cols||[];
@@ -111,7 +156,7 @@ function loadLibrary(){
    const rows=rowsFromGViz(payload);
    videos=normalizeRows(rows);
    if(!videos.length)throw new Error('The spreadsheet opened, but no video rows with recognizable title or link columns were found.');
-   fill($('area'),[...new Set(videos.map(v=>v.functionArea))].sort(),'All function areas');
+   fill($('area'),uniqueSorted([...DEFAULT_AREAS,...videos.map(v=>v.functionArea)]),'All function areas');
    updateFilterOptions();renderVideos();
    $('footerStatus').textContent='Connected to FCNY AI Video Library · '+videos.length+' real library videos';
   }catch(err){showSheetError(err);}
