@@ -144,7 +144,16 @@ function rowsFromGViz(payload){
  const headers=cols.map((c,i)=>(c.label||c.id||('Column '+(i+1))).trim());
  return (payload.table.rows||[]).map(row=>Object.fromEntries(headers.map((h,i)=>[h,row.c&&row.c[i]&&row.c[i].v!=null?String(row.c[i].f??row.c[i].v):''])));
 }
+const YOUTUBE_STARTER_VIDEOS=[
+{title:'ChatGPT Tutorial for Beginners',url:'https://www.youtube.com/watch?v=poM2n8fBcag',functionArea:'Operations',task:'Draft or improve writing',tool:'ChatGPT',description:'Learn practical ChatGPT workflows for writing and productivity.',duration:'',presenter:'YouTube AI training'},
+{title:'Microsoft Copilot Tutorial',url:'https://www.youtube.com/watch?v=d-CuF6dlqLg',functionArea:'Data & Analytics',task:'Analyze data',tool:'Microsoft Copilot',description:'Explore AI assistance across Microsoft productivity tools.',duration:'',presenter:'YouTube AI training'},
+{title:'Gemini for Google Workspace',url:'https://www.youtube.com/watch?v=4wppKdmQlD0',functionArea:'Operations',task:'Summarize documents',tool:'Google Gemini',description:'Use Gemini to support Google Workspace tasks.',duration:'',presenter:'YouTube AI training'},
+{title:'AI tools for work: video tutorials',url:'https://www.youtube.com/results?search_query=AI+training+tutorial+for+work',functionArea:'Research & Analysis',task:'Research a topic',tool:'ChatGPT',description:'Explore additional publicly available AI training videos.',duration:'',presenter:'YouTube learning'}
+].map((v,i)=>({...v,id:'youtube-starter-'+i,thumbnail:youtubeId(v.url)?'https://i.ytimg.com/vi/'+youtubeId(v.url)+'/hqdefault.jpg':''}));
+function showStarterVideos(note){videos=YOUTUBE_STARTER_VIDEOS.slice();fill($('area'),uniqueSorted([...DEFAULT_AREAS,...videos.map(v=>v.functionArea)]),'All function areas',$('area').value);updateFilterOptions();renderVideos();$('footerStatus').textContent=note||'YouTube starter library · 3 linked tutorials + discovery';}
+
 function loadLibrary(){
+ showStarterVideos('YouTube starter library · checking Google Sheets for updates');
  $('matchCount').textContent='Loading spreadsheet…';
  $('resultCount').textContent='Connecting to Google Sheets';
  $('footerStatus').textContent='Loading FCNY AI Video Library…';
@@ -169,13 +178,8 @@ function loadLibrary(){
  window.setTimeout(()=>{if(document.getElementById('sheetLoader')){showSheetError(new Error('Google Sheets did not respond. Check sharing access and try refreshing.'));delete window[callback];script.remove();}},12000);
  document.head.appendChild(script);
 }
-function showSheetError(err){
- console.error(err);
- $('matchCount').textContent='Sheet access needed';
- $('resultCount').textContent='Library unavailable';
- $('videoGrid').innerHTML='<div class="notice" style="grid-column:1/-1"><strong>We couldn’t load the video spreadsheet.</strong><p>'+esc(err.message||'Check the sheet sharing settings.')+'</p><p>Set General access to “Anyone with the link” as Viewer, or publish the video-library tab to the web, then refresh this page.</p><a class="btn" href="'+SHEET_URL+'" target="_blank" rel="noopener noreferrer">Open source spreadsheet ↗</a></div>';
- $('showMore').hidden=true;$('footerStatus').textContent='Google Sheets connection needs access';
-}
+function showSheetError(err){console.warn('Google Sheets unavailable; retaining YouTube starter videos:',err);showStarterVideos('YouTube starter library · spreadsheet unavailable');}
+
 $('area').addEventListener('change',()=>{updateFilterOptions();shownAll=false;renderVideos();});$('task').addEventListener('change',()=>{updateFilterOptions();shownAll=false;renderVideos();});$('tool').addEventListener('change',()=>{shownAll=false;renderVideos();});$('keyword').addEventListener('input',()=>{shownAll=false;renderVideos();});$('searchForm').addEventListener('submit',e=>{e.preventDefault();shownAll=false;renderVideos();});$('showMore').addEventListener('click',()=>{shownAll=true;renderVideos();});
 loadLibrary();
 </script>
