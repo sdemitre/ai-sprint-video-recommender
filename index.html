@@ -156,16 +156,16 @@ function sheetVideos(csv){
  const records=rows.slice(headerIndex+1).map(row=>Object.fromEntries(headers.map((h,i)=>[h,row[i]||''])));
  const parsed=records.filter(r=>!['inactive','archived','draft','disabled','false','no','0'].includes(field(r,'Status','Active','Published').toLowerCase())).map(r=>{
   const title=field(r,'Title','Video Title','Name','Training Title','Resource Title','Video Name','Tutorial Title','AI Training Video','Video','Topic');
-  const url=field(r,'YouTube_URL','YouTube URL','Video URL','URL','Link','Video Link','Video_ID','YouTube ID','Video ID','YouTube Link','Video','Training Link','Resource Link','Watch Link','Tutorial Link','Video Website','Video Web Link');
+  const url=field(r,'YouTube_URL','YouTube URL','Video URL','URL','Link','Video Link','Video_ID','YouTube ID','Video ID','YouTube Link','Video','Training Link','Resource Link','Watch Link','Tutorial Link','Video Website','Video Web Link','File Name / Link');
   let id=youtubeIdFrom(url);
   if(!id){for(const val of Object.values(r)){id=youtubeIdFrom(val);if(id)break}}
-  if(!title||!/^[\\w-]{11}$/.test(id))return null;
-  const area=field(r,'Function_Areas','Function Area','Function','Department','Category','Business Function','Functional Area','Use Case','Function/Area')||'General';
+  if(!title||!/^[\w-]{11}$/.test(id))return null;
+  const area=field(r,'Function_Areas','Function Area','Function','Department','Category','Business Function','Functional Area','Use Case','Function/Area','Primary Category (Web)','Category 2')||'General';
   const tool=field(r,'Tools','Tool','AI Tool','Platform','Product','AI Platform')||'AI tools';
-  const task=field(r,'Task_Keywords','Task Keywords','Task','Goal','Keywords','Tags','Use Case','Learning Objective');
+  const task=field(r,'Task_Keywords','Task Keywords','Task','Goal','Keywords','Tags','Use Case','Learning Objective','Category 2','Primary Category (Web)');
   const desc=field(r,'Description','Summary','Video Description','Overview','What You Will Learn')||'Watch this AI training video.';
   const tags=field(r,'Tags','Category','Tool').split(/[,;|]/).map(x=>x.trim()).filter(Boolean).slice(0,3);
-  return {title,area,tool,task,desc,tags:tags.length?tags:[tool],duration:field(r,'Duration','Length','Video Duration')||'Video',why:'Recommended from the connected Google Sheets library.',youtubeId:id,creator:field(r,'Creator','Channel','Author','Source','Publisher')||'YouTube'}
+  return {title,area,tool,task,desc,tags:tags.length?tags:[tool],duration:field(r,'Duration','Length','Video Duration')||'Video',why:'Recommended from the connected Google Sheets library.',youtubeId:id,creator:field(r,'Creator','Channel','Author','Source','Publisher','Presenter')||'YouTube'}
  }).filter(Boolean);
  if(!parsed.length)throw Error('0 usable YouTube links in '+records.length+' rows. Columns: '+rows[headerIndex].slice(0,12).join(' | ').slice(0,210));
  return parsed
