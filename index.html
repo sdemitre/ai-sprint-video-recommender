@@ -138,8 +138,8 @@ function render(){
 }
 $('find').addEventListener('click',()=>search(true));$('more').addEventListener('click',()=>{shown+=3;render()});$('reset').addEventListener('click',()=>{$('function').value='';$('goal').value='';$('tool').value='';$('status').className='status';search(false)});$('goal').addEventListener('keydown',e=>{if(e.key==='Enter')search(true)});$('resetAnalytics').addEventListener('click',()=>{if(confirm('Reset all locally stored video selection counts?')){usage={videos:{}};save();announce('Local analytics reset.','ok')}});$('exportAnalytics').addEventListener('click',()=>{const rows=[['Video','Category','Selections'],...videos.map(v=>[v.title,v.area,selectedCount(v)])];const csv=rows.map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(',')).join('\n');const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='sprint-video-usage-analytics.csv';a.click();URL.revokeObjectURL(url)});window.addEventListener('hashchange',showPage);renderAdmin();search(false);if(!location.hash)history.replaceState(null,'',location.pathname+location.search+'#home');showPage();
 
-const SHEET_ID='1jHsnepFdec7YIWkGOJaa8NgJbmy35LNXZ5P7epUPYV8';
-const SHEET_GID=new URLSearchParams(location.search).get('gid')||'0';
+const SHEET_ID='19oEtn6wLq_2Svr_axMuFb9H0llNcqdR7Fsxcn3VOa6w';
+const SHEET_GID=new URLSearchParams(location.search).get('gid')||'1800614659';
 const SHEET_URL=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${encodeURIComponent(SHEET_GID)}`;
 window.sheetLoaded=false;
 function parseCSV(text){let rows=[],row=[],cell='',quoted=false;for(let i=0;i<text.length;i++){let c=text[i];if(c==='"'){if(quoted&&text[i+1]==='"'){cell+='"';i++}else quoted=!quoted}else if(c===','&&!quoted){row.push(cell);cell=''}else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&text[i+1]==='\n')i++;row.push(cell);if(row.some(x=>x.trim()))rows.push(row);row=[];cell=''}else cell+=c}row.push(cell);if(row.some(x=>x.trim()))rows.push(row);return rows}
