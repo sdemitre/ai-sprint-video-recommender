@@ -93,7 +93,44 @@ function updateFilterOptions(){const area=$('area').value,task=$('task').value,t
 function score(v){let n=0;if($('area').value)n+=v.functionArea===$('area').value?10:-2;if($('task').value&&v.task===$('task').value)n+=8;if($('tool').value&&v.tool===$('tool').value)n+=5;const q=norm($('keyword').value);if(q){const hay=norm([v.title,v.description,v.functionArea,v.task,v.tool].join(' '));q.split(' ').forEach(w=>{if(w.length>1&&hay.includes(w))n+=2;});}return n;}
 function art(v,i){const id=youtubeId(v.url);const thumb=v.thumbnail||(id?'https://i.ytimg.com/vi/'+id+'/hqdefault.jpg':'');const bg=thumb?'<img src="'+esc(thumb)+'" alt="" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.classList.add(\'no-thumb\');this.parentElement.insertAdjacentHTML(\'afterbegin\',\'<span class=&quot;fallback-play&quot;>▶</span>\')">':'<div class="fallback-play">▶</div>';return '<a class="art '+(thumb?'':'no-thumb')+'" href="'+esc(v.url||SHEET_URL)+'" target="_blank" rel="noopener noreferrer" aria-label="Watch '+esc(v.title)+'">'+bg+'<span class="artlabel">AI SPRINT VIDEO</span><span class="visual-title">'+esc(v.title)+'</span><span class="visual-play">▶ Watch video</span></a>';}
 function renderVideos(){const area=$('area').value,task=$('task').value,tool=$('tool').value,q=norm($('keyword').value);results=videos.filter(v=>(!area||v.functionArea===area)&&(!task||v.task===task)&&(!tool||v.tool===tool)&&(!q||norm([v.title,v.description,v.functionArea,v.task,v.tool,v.presenter].join(' ')).includes(q))).map(v=>({...v,_score:score(v)})).sort((a,b)=>b._score-a._score);$('matchCount').textContent=results.length+' videos';$('resultCount').textContent=results.length+' library results';const visible=shownAll?results:results.slice(0,3);$('videoGrid').innerHTML=visible.map((v,i)=>'<article class="video">'+art(v,i)+'<div class="video-body"><div class="tags"><span>'+esc(v.tool)+'</span><span>'+esc(v.duration||'Video')+'</span></div><h3>'+esc(v.title)+'</h3><p>'+esc(v.description)+'</p><p class="reason">Matched to '+esc(v.functionArea)+' · '+esc(v.task)+'</p><div class="video-foot"><span>'+esc(v.presenter)+'</span><a class="watch" href="'+esc(v.url||SHEET_URL)+'" target="_blank" rel="noopener noreferrer">Watch original ↗</a></div></div></article>').join('')||'<div class="notice">No exact matches. Try removing a filter or using a broader keyword.</div>';$('showMore').hidden=shownAll||results.length<=3;}
-async function loadLibrary(){try{$('matchCount').textContent='Loading spreadsheet…';$('resultCount').textContent='Connecting to Google Sheets';$('footerStatus').textContent='Loading the FCNY video library…';const response=await fetch(CSV_URL,{cache:'no-store'});if(!response.ok)throw new Error('Google Sheets returned HTTP '+response.status);const csv=await response.text();if(/^\s*</.test(csv)||/sign in|request access|access denied/i.test(csv.slice(0,500)))throw new Error('The spreadsheet is not publicly readable.');const rows=parseCSV(csv);videos=normalizeRows(rows);if(!videos.length)throw new Error('No video rows with titles or links were found.');fill($('area'),[...new Set(videos.map(v=>v.functionArea))].sort(),'All function areas');updateFilterOptions();renderVideos();$('footerStatus').textContent='Connected to FCNY Google Sheets · '+videos.length+' real library videos';$('heroStatus')?.remove();}catch(err){console.error(err);$('matchCount').textContent='Sheet access needed';$('resultCount').textContent='Library unavailable';$('videoGrid').innerHTML='<div class="notice" style="grid-column:1/-1"><strong>We couldn’t load the video spreadsheet.</strong><p>'+esc(err.message||'Check the sheet sharing settings.')+'</p><p>Set General access to “Anyone with the link” as Viewer, or publish the video-library tab to the web, then refresh this page.</p><a class="btn" href="'+SHEET_URL+'" target="_blank" rel="noopener noreferrer">Open source spreadsheet ↗</a></div>';$('showMore').hidden=true;$('footerStatus').textContent='Google Sheets connection needs access';}}
+function rowsFromGViz(payload){
+ if(!payload||payload.status!=='ok'||!payload.table)throw new Error('Google Sheets did not return readable video data.');
+ const cols=payload.table.cols||[];
+ const headers=cols.map((c,i)=>(c.label||c.id||('Column '+(i+1))).trim());
+ return (payload.table.rows||[]).map(row=>Object.fromEntries(headers.map((h,i)=>[h,row.c&&row.c[i]&&row.c[i].v!=null?String(row.c[i].f??row.c[i].v):''])));
+}
+function loadLibrary(){
+ $('matchCount').textContent='Loading spreadsheet…';
+ $('resultCount').textContent='Connecting to Google Sheets';
+ $('footerStatus').textContent='Loading the FCNY video library…';
+ const prior=document.getElementById('sheetLoader');if(prior)prior.remove();
+ const callback='__sprintSheetCallback';
+ window[callback]=function(payload){
+  try{
+   if(payload&&payload.status==='error')throw new Error(payload.errors?.[0]?.detailed_message||payload.errors?.[0]?.message||'Google Sheets denied access.');
+   const rows=rowsFromGViz(payload);
+   videos=normalizeRows(rows);
+   if(!videos.length)throw new Error('The spreadsheet opened, but no video rows with recognizable title or link columns were found.');
+   fill($('area'),[...new Set(videos.map(v=>v.functionArea))].sort(),'All function areas');
+   updateFilterOptions();renderVideos();
+   $('footerStatus').textContent='Connected to FCNY Google Sheets · '+videos.length+' real library videos';
+  }catch(err){showSheetError(err);}
+  finally{delete window[callback];document.getElementById('sheetLoader')?.remove();}
+ };
+ const script=document.createElement('script');
+ script.id='sheetLoader';
+ script.src='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:json;responseHandler:'+callback;
+ script.onerror=()=>{showSheetError(new Error('Google Sheets could not be reached. Confirm the sheet is shared as Anyone with the link → Viewer and that the spreadsheet ID is correct.'));delete window[callback];script.remove();};
+ window.setTimeout(()=>{if(document.getElementById('sheetLoader')){showSheetError(new Error('Google Sheets did not respond. Check sharing access and try refreshing.'));delete window[callback];script.remove();}},12000);
+ document.head.appendChild(script);
+}
+function showSheetError(err){
+ console.error(err);
+ $('matchCount').textContent='Sheet access needed';
+ $('resultCount').textContent='Library unavailable';
+ $('videoGrid').innerHTML='<div class="notice" style="grid-column:1/-1"><strong>We couldn’t load the video spreadsheet.</strong><p>'+esc(err.message||'Check the sheet sharing settings.')+'</p><p>Set General access to “Anyone with the link” as Viewer, or publish the video-library tab to the web, then refresh this page.</p><a class="btn" href="'+SHEET_URL+'" target="_blank" rel="noopener noreferrer">Open source spreadsheet ↗</a></div>';
+ $('showMore').hidden=true;$('footerStatus').textContent='Google Sheets connection needs access';
+}
 $('area').addEventListener('change',()=>{updateFilterOptions();shownAll=false;renderVideos();});$('task').addEventListener('change',()=>{updateFilterOptions();shownAll=false;renderVideos();});$('tool').addEventListener('change',()=>{shownAll=false;renderVideos();});$('keyword').addEventListener('input',()=>{shownAll=false;renderVideos();});$('searchForm').addEventListener('submit',e=>{e.preventDefault();shownAll=false;renderVideos();});$('showMore').addEventListener('click',()=>{shownAll=true;renderVideos();});
 loadLibrary();
 </script>
