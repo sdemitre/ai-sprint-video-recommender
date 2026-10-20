@@ -140,7 +140,7 @@ $('find').addEventListener('click',()=>search(true));$('more').addEventListener(
 
 const SHEET_ID='19oEtn6wLq_2Svr_axMuFb9H0llNcqdR7Fsxcn3VOa6w';
 const SHEET_GID=new URLSearchParams(location.search).get('gid')||'1800614659';
-const SHEET_URL=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${encodeURIComponent(SHEET_GID)}`;
+const SHEET_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vRFTu12WPyZt2v7VH5d5R5y_ZrUJ3uNk_fMmxFQ2M0gyu_psQK0Hlbw36rK4Cjh8tm8aMBcnzNj0D84/pub?gid=1800614659&single=true&output=csv";
 window.sheetLoaded=false;
 function parseCSV(text){let rows=[],row=[],cell='',quoted=false;for(let i=0;i<text.length;i++){let c=text[i];if(c==='"'){if(quoted&&text[i+1]==='"'){cell+='"';i++}else quoted=!quoted}else if(c===','&&!quoted){row.push(cell);cell=''}else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&text[i+1]==='\n')i++;row.push(cell);if(row.some(x=>x.trim()))rows.push(row);row=[];cell=''}else cell+=c}row.push(cell);if(row.some(x=>x.trim()))rows.push(row);return rows}
 function key(x){return String(x).toLowerCase().replace(/[^a-z0-9]/g,'')}
